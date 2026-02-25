@@ -62,8 +62,12 @@ uint8_t CCID_OutEvent(uint8_t *data, uint8_t len) {
         ab_data_length = bulkout_data.dwLength; // abnormal packet received, truncate data
 
       if (bulkout_data.bMessageType == PC_TO_RDR_XFRBLOCK) {
+        if (bulkout_data.dwLength > APDU_BUFFER_SIZE) {
+          // Reject oversized APDU early to avoid writing past the APDU buffer
+          DBG_MSG("Discard oversized XfrBlock: %lu\n", bulkout_data.dwLength);
+        }
         // always acquire the APDU buffer for XFRBLOCK, because the buffer is used during APDU process and response
-        if (acquire_apdu_buffer(BUFFER_OWNER_CCID) != 0) {
+        else if (acquire_apdu_buffer(BUFFER_OWNER_CCID) != 0) {
           // global_buffer is not available, discarding abData
           // only PC_to_RDR_XfrBlock and PC_to_RDR_Secure should get here
           DBG_MSG("Discard data because of buffer conflict\n");
@@ -176,6 +180,10 @@ uint8_t PC_to_RDR_XfrBlock(void) {
   uint8_t *abData = CCID_IsShortCommand() ? bulkout_data.abDataShort : global_buffer;
   uint8_t error = CCID_CheckCommandParams(CHK_PARAM_SLOT);
   if (error != 0) return error;
+  if (bulkout_data.dwLength > APDU_BUFFER_SIZE) {
+    CCID_UpdateCommandStatus(BM_COMMAND_STATUS_FAILED, CCID_CardStatus());
+    return SLOTERROR_BAD_DWLENGTH;
+  }
 
   DBG_MSG("O: ");
   PRINT_HEX(abData, bulkout_data.dwLength);
