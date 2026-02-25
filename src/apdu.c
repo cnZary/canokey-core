@@ -76,9 +76,11 @@ int build_capdu(CAPDU *capdu, const uint8_t *cmd, uint16_t len) {
     LC = 0;
     if (LE == 0) LE = 0x100;
   } else if (LC > 0 && len == 5 + LC) { // Case 3S
+    if (LC > APDU_BUFFER_SIZE) return -1;
     memmove(DATA, cmd + 5, LC);
     LE = 0x100;
   } else if (LC > 0 && len == 6 + LC) { // Case 4S
+    if (LC > APDU_BUFFER_SIZE) return -1;
     memmove(DATA, cmd + 5, LC);
     LE = cmd[5 + LC];
     if (LE == 0) LE = 0x100;
@@ -90,6 +92,7 @@ int build_capdu(CAPDU *capdu, const uint8_t *cmd, uint16_t len) {
     if (LC != 0 || len < 7) return -1;
     LC = (cmd[5] << 8) | cmd[6];
     if (LC == 0) return -1;
+    if (LC > APDU_BUFFER_SIZE) return -1;
     if (len == 7 + LC) { // Case 3E
       memmove(DATA, cmd + 7, LC);
       LE = 0x10000;
